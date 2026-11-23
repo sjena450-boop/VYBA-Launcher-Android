@@ -55,6 +55,7 @@ fun VybaNavGraph() {
                 onDeleteHomeFolder = homeViewModel::deleteHomeFolder,
                 onRenameHomeFolder = homeViewModel::renameHomeFolder,
                 onRemoveAppFromHomeFolder = homeViewModel::removeAppFromHomeFolder,
+                onAddAppsToHomeFolder = homeViewModel::addAppsToHomeFolder,
                 onToggleDock = homeViewModel::toggleDock,
                 onToggleHide = homeViewModel::toggleHidden,
                 onOpenAppInfo = homeViewModel::openAppInfo,
