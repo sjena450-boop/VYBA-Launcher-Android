@@ -62,6 +62,7 @@ data class LauncherPreferences(
     val gridColumns: Int = 4,
     val showAppLabels: Boolean = true,
     val pinnedPackages: Set<String> = emptySet(),
+    val pinnedOrder: List<String> = emptyList(),
     val dockPackages: List<String> = emptyList(),
     val hiddenPackages: Set<String> = emptySet(),
 )
