@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -56,6 +57,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -263,7 +265,27 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(VybaSpacing.lg))
 
                 // Pinned Home Apps Grid
-                Box(modifier = Modifier.weight(1f)) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .pointerInput(homePages.size, safeHomePage) {
+                            var horizontalDrag = 0f
+                            detectHorizontalDragGestures(
+                                onHorizontalDrag = { change, dragAmount ->
+                                    horizontalDrag += dragAmount
+                                    change.consume()
+                                },
+                                onDragEnd = {
+                                    when {
+                                        horizontalDrag <= -60f -> selectedHomePage = (safeHomePage + 1).coerceAtMost(homePages.lastIndex)
+                                        horizontalDrag >= 60f -> selectedHomePage = (safeHomePage - 1).coerceAtLeast(0)
+                                    }
+                                    horizontalDrag = 0f
+                                },
+                                onDragCancel = { horizontalDrag = 0f },
+                            )
+                        },
+                ) {
                     when {
                         uiState.isLoading -> VybaLoadingState(message = "Loading installed apps...")
                         uiState.pinnedApps.isEmpty() -> {
