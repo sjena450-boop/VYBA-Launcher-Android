@@ -18,11 +18,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -30,6 +33,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Refresh
@@ -247,7 +251,10 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(if (isHomeEditMode) "Edit mode" else "Home", style = MaterialTheme.typography.labelLarge)
-                    IconButton(onClick = { isHomeEditMode = !isHomeEditMode }) {
+                    IconButton(onClick = {
+                        isHomeEditMode = !isHomeEditMode
+                        if (!isHomeEditMode) selectedForFolder = emptySet()
+                    }) {
                         Icon(if (isHomeEditMode) Icons.Rounded.Check else Icons.Rounded.Edit, contentDescription = "Toggle home edit mode")
                     }
                 }
@@ -358,7 +365,7 @@ fun HomeScreen(
                                                 horizontalAlignment = Alignment.CenterHorizontally,
                                             ) {
                                                 Icon(
-                                                    imageVector = Icons.Rounded.Apps,
+                                                    imageVector = Icons.Rounded.FolderOpen,
                                                     contentDescription = "Open ${folder.name}",
                                                     tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                                     modifier = Modifier.size(42.dp),
@@ -528,7 +535,9 @@ fun HomeScreen(
             onDismissRequest = { showAddToFolderDialog = false },
             title = { Text("Add selected apps to folder") },
             text = {
-                Column {
+                Column(
+                    modifier = Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()),
+                ) {
                     Text("${selectedForFolder.size} selected apps will be moved into the folder.")
                     uiState.preferences.homeFolders.forEach { folder ->
                         TextButton(
@@ -550,9 +559,11 @@ fun HomeScreen(
         if (folder == null) { selectedFolderId = null } else {
             AlertDialog(
                 onDismissRequest = { selectedFolderId = null },
-                title = { Text(folder.name) },
+                title = { Text("${folder.name} · ${folder.packageNames.size} apps") },
                 text = {
-                    Column {
+                    Column(
+                        modifier = Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()),
+                    ) {
                         folder.packageNames.forEach { packageName ->
                             val app = uiState.allApps.firstOrNull { it.packageName == packageName }
                             Row(
