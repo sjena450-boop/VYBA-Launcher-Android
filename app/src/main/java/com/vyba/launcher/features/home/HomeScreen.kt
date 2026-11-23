@@ -27,6 +27,8 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
@@ -126,6 +128,11 @@ fun HomeScreen(
     }
 
     var showDrawer by remember { mutableStateOf(false) }
+    var isHomeEditMode by remember { mutableStateOf(false) }
+    var selectedHomePage by remember { mutableStateOf(0) }
+    val homePages = uiState.pinnedApps.chunked(12)
+    val safeHomePage = selectedHomePage.coerceIn(0, (homePages.size - 1).coerceAtLeast(0))
+    val currentHomeApps = homePages.getOrNull(safeHomePage).orEmpty()
     val snackbarHostState = remember { SnackbarHostState() }
     var now by remember { mutableStateOf(LocalDateTime.now()) }
 
@@ -214,6 +221,17 @@ fun HomeScreen(
 
                 Spacer(modifier = Modifier.height(VybaSpacing.lg))
 
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(if (isHomeEditMode) "Edit mode" else "Home", style = MaterialTheme.typography.labelLarge)
+                    IconButton(onClick = { isHomeEditMode = !isHomeEditMode }) {
+                        Icon(if (isHomeEditMode) Icons.Rounded.Check else Icons.Rounded.Edit, contentDescription = "Toggle home edit mode")
+                    }
+                }
+
                 // Search Pill -> opens App Drawer
                 Surface(
                     modifier = Modifier
@@ -275,7 +293,7 @@ fun HomeScreen(
                                 horizontalArrangement = Arrangement.spacedBy(VybaSpacing.xs),
                                 contentPadding = PaddingValues(bottom = VybaSpacing.md),
                             ) {
-                                items(uiState.pinnedApps, key = { it.packageName }) { app ->
+                                items(currentHomeApps, key = { it.packageName }) { app ->
                                     AppIconTile(
                                         app = app,
                                         showLabel = uiState.preferences.showAppLabels,
@@ -291,6 +309,30 @@ fun HomeScreen(
                                 }
                             }
                         }
+                    }
+                    if (homePages.size > 1) {
+                        Row(
+                            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = VybaSpacing.xs),
+                            horizontalArrangement = Arrangement.spacedBy(VybaSpacing.sm),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            homePages.indices.forEach { page ->
+                                Surface(
+                                    modifier = Modifier.size(if (page == safeHomePage) 10.dp else 7.dp)
+                                        .clip(MaterialTheme.shapes.small).clickable { selectedHomePage = page },
+                                    color = if (page == safeHomePage) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                                ) {}
+                            }
+                        }
+                    }
+                    if (isHomeEditMode) {
+                        Text(
+                            text = "Home edit mode · ${uiState.pinnedApps.size} pinned apps",
+                            modifier = Modifier.align(Alignment.TopCenter),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
 
