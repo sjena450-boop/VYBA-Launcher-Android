@@ -91,6 +91,7 @@ fun HomeScreen(
     onDeleteHomeFolder: (String) -> Unit,
     onRenameHomeFolder: (String, String) -> Unit,
     onRemoveAppFromHomeFolder: (String, String) -> Unit,
+    onAddAppsToHomeFolder: (String, List<String>) -> Unit,
     onToggleDock: (String) -> Unit,
     onToggleHide: (String) -> Unit,
     onOpenAppInfo: (String) -> Unit,
@@ -143,6 +144,7 @@ fun HomeScreen(
     var selectedForFolder by remember { mutableStateOf<Set<String>>(emptySet()) }
     var folderName by remember { mutableStateOf("") }
     var showCreateFolderDialog by remember { mutableStateOf(false) }
+    var showAddToFolderDialog by remember { mutableStateOf(false) }
     var selectedFolderId by remember { mutableStateOf<String?>(null) }
     var showRenameFolderDialog by remember { mutableStateOf(false) }
     var renameFolderId by remember { mutableStateOf<String?>(null) }
@@ -254,6 +256,9 @@ fun HomeScreen(
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                         Text(text = "${selectedForFolder.size} apps selected", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         TextButton(enabled = selectedForFolder.size >= 2, onClick = { showCreateFolderDialog = true }) { Text("Create folder") }
+                        if (selectedForFolder.isNotEmpty() && uiState.preferences.homeFolders.isNotEmpty()) {
+                            TextButton(onClick = { showAddToFolderDialog = true }) { Text("Add to folder") }
+                        }
                         TextButton(onClick = { selectedForFolder = emptySet() }, enabled = selectedForFolder.isNotEmpty()) { Text("Clear") }
                     }
                 }
@@ -516,6 +521,28 @@ fun HomeScreen(
             text = { Column { Text("Add the ${selectedForFolder.size} selected apps to a folder."); OutlinedTextField(value = folderName, onValueChange = { folderName = it.take(24) }, singleLine = true, label = { Text("Folder name") }) } },
             confirmButton = { TextButton(enabled = folderName.isNotBlank(), onClick = { onCreateHomeFolder(folderName, selectedForFolder.toList()); folderName = ""; selectedForFolder = emptySet(); showCreateFolderDialog = false }) { Text("Create") } },
             dismissButton = { TextButton(onClick = { showCreateFolderDialog = false }) { Text("Cancel") } },
+        )
+    }
+    if (showAddToFolderDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddToFolderDialog = false },
+            title = { Text("Add selected apps to folder") },
+            text = {
+                Column {
+                    Text("${selectedForFolder.size} selected apps will be moved into the folder.")
+                    uiState.preferences.homeFolders.forEach { folder ->
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                onAddAppsToHomeFolder(folder.id, selectedForFolder.toList())
+                                selectedForFolder = emptySet()
+                                showAddToFolderDialog = false
+                            },
+                        ) { Text("${folder.name} · ${folder.packageNames.size} apps") }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showAddToFolderDialog = false }) { Text("Cancel") } },
         )
     }
     selectedFolderId?.let { folderId ->
