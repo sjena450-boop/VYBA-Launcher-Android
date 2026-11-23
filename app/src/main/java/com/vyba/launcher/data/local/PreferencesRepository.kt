@@ -33,6 +33,7 @@ class PreferencesRepository(private val context: Context) {
         val PINNED_PACKAGES = stringSetPreferencesKey("pinned_packages")
         val DOCK_PACKAGES = stringPreferencesKey("dock_packages")
         val HIDDEN_PACKAGES = stringSetPreferencesKey("hidden_packages")
+        val PINNED_ORDER = stringPreferencesKey("pinned_order")
     }
 
     val preferencesFlow: Flow<LauncherPreferences> = context.vybaDataStore.data.map { prefs ->
@@ -51,6 +52,7 @@ class PreferencesRepository(private val context: Context) {
             gridColumns = (prefs[Keys.GRID_COLUMNS] ?: 4).coerceIn(4, 5),
             showAppLabels = prefs[Keys.SHOW_APP_LABELS] ?: true,
             pinnedPackages = prefs[Keys.PINNED_PACKAGES] ?: emptySet(),
+            pinnedOrder = prefs[Keys.PINNED_ORDER].orEmpty().split("|").filter { it.isNotBlank() },
             dockPackages = dockList,
             hiddenPackages = prefs[Keys.HIDDEN_PACKAGES] ?: emptySet(),
         )
@@ -92,6 +94,21 @@ class PreferencesRepository(private val context: Context) {
             } else {
                 current + packageName
             }
+        }
+    }
+
+    suspend fun movePinnedPackage(packageName: String, targetIndex: Int) {
+        context.vybaDataStore.edit { prefs ->
+            val pinned = prefs[Keys.PINNED_PACKAGES] ?: emptySet()
+            if (packageName !in pinned) return@edit
+            val stored = prefs[Keys.PINNED_ORDER].orEmpty()
+                .split("|").filter { it.isNotBlank() && it in pinned }.toMutableList()
+            (pinned - stored.toSet()).sorted().forEach(stored::add)
+            val oldIndex = stored.indexOf(packageName)
+            if (oldIndex < 0) return@edit
+            val moved = stored.removeAt(oldIndex)
+            stored.add(targetIndex.coerceIn(0, stored.size), moved)
+            prefs[Keys.PINNED_ORDER] = stored.joinToString("|")
         }
     }
 
