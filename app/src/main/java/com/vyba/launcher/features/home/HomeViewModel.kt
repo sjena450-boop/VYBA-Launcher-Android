@@ -121,6 +121,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { prefsRepository.movePinnedPackage(packageName, targetIndex) }
     }
 
+    fun createHomeFolder(name: String, packageNames: List<String>) {
+        viewModelScope.launch { prefsRepository.createHomeFolder(name, packageNames) }
+    }
+
+    fun deleteHomeFolder(folderId: String) {
+        viewModelScope.launch { prefsRepository.deleteHomeFolder(folderId) }
+    }
+
     fun toggleDock(packageName: String) {
         viewModelScope.launch { prefsRepository.toggleDockPackage(packageName) }
     }
