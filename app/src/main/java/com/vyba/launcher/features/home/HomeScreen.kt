@@ -90,6 +90,7 @@ fun HomeScreen(
     onCreateHomeFolder: (String, List<String>) -> Unit,
     onDeleteHomeFolder: (String) -> Unit,
     onRenameHomeFolder: (String, String) -> Unit,
+    onRemoveAppFromHomeFolder: (String, String) -> Unit,
     onToggleDock: (String) -> Unit,
     onToggleHide: (String) -> Unit,
     onOpenAppInfo: (String) -> Unit,
@@ -145,7 +146,9 @@ fun HomeScreen(
     var selectedFolderId by remember { mutableStateOf<String?>(null) }
     var showRenameFolderDialog by remember { mutableStateOf(false) }
     var renameFolderId by remember { mutableStateOf<String?>(null) }
-    val homePages = uiState.pinnedApps.chunked(12)
+    val folderPackageNames = uiState.preferences.homeFolders.flatMap { it.packageNames }.toSet()
+    val ungroupedPinnedApps = uiState.pinnedApps.filterNot { it.packageName in folderPackageNames }
+    val homePages = ungroupedPinnedApps.chunked(12)
     val safeHomePage = selectedHomePage.coerceIn(0, (homePages.size - 1).coerceAtLeast(0))
     val currentHomeApps = homePages.getOrNull(safeHomePage).orEmpty()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -254,16 +257,6 @@ fun HomeScreen(
                         TextButton(onClick = { selectedForFolder = emptySet() }, enabled = selectedForFolder.isNotEmpty()) { Text("Clear") }
                     }
                 }
-                if (uiState.preferences.homeFolders.isNotEmpty()) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(VybaSpacing.xs)) {
-                        uiState.preferences.homeFolders.forEach { folder ->
-                            Surface(modifier = Modifier.clickable { selectedFolderId = folder.id }, shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.secondaryContainer) {
-                                Text(text = "${folder.name} · ${folder.packageNames.size}", modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(VybaSpacing.xs))
-                }
                 // Search Pill -> opens App Drawer
                 Surface(
                     modifier = Modifier
@@ -345,6 +338,43 @@ fun HomeScreen(
                                 horizontalArrangement = Arrangement.spacedBy(VybaSpacing.xs),
                                 contentPadding = PaddingValues(bottom = VybaSpacing.md),
                             ) {
+                                if (safeHomePage == 0) {
+                                    items(uiState.preferences.homeFolders, key = { "folder-${it.id}" }) { folder ->
+                                        Surface(
+                                            modifier = Modifier
+                                                .clip(MaterialTheme.shapes.medium)
+                                                .clickable { selectedFolderId = folder.id }
+                                                .padding(vertical = 6.dp, horizontal = 4.dp),
+                                            shape = MaterialTheme.shapes.medium,
+                                            color = MaterialTheme.colorScheme.secondaryContainer,
+                                        ) {
+                                            Column(
+                                                modifier = Modifier.padding(vertical = 10.dp, horizontal = 6.dp),
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.Apps,
+                                                    contentDescription = "Open ${folder.name}",
+                                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                                    modifier = Modifier.size(42.dp),
+                                                )
+                                                if (uiState.preferences.showAppLabels) {
+                                                    Text(
+                                                        text = folder.name,
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                                        maxLines = 1,
+                                                    )
+                                                }
+                                                Text(
+                                                    text = "${folder.packageNames.size} apps",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
                                 items(currentHomeApps, key = { it.packageName }) { app ->
                                     val localIndex = currentHomeApps.indexOfFirst { it.packageName == app.packageName }
                                     val pageStartIndex = safeHomePage * 12
@@ -494,7 +524,26 @@ fun HomeScreen(
             AlertDialog(
                 onDismissRequest = { selectedFolderId = null },
                 title = { Text(folder.name) },
-                text = { Column { folder.packageNames.forEach { packageName -> Text(uiState.allApps.firstOrNull { it.packageName == packageName }?.label ?: packageName, style = MaterialTheme.typography.bodyMedium) } } },
+                text = {
+                    Column {
+                        folder.packageNames.forEach { packageName ->
+                            val app = uiState.allApps.firstOrNull { it.packageName == packageName }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = app?.label ?: packageName,
+                                    modifier = Modifier.weight(1f),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                TextButton(onClick = { onLaunchApp(packageName); selectedFolderId = null }) { Text("Open") }
+                                TextButton(onClick = { onRemoveAppFromHomeFolder(folder.id, packageName) }) { Text("Remove") }
+                            }
+                        }
+                    }
+                },
                 confirmButton = {
                     Row {
                         TextButton(onClick = { folderName = folder.name; renameFolderId = folder.id; showRenameFolderDialog = true; selectedFolderId = null }) { Text("Rename") }
