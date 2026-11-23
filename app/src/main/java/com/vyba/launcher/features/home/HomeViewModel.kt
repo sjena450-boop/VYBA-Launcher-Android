@@ -125,6 +125,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { prefsRepository.createHomeFolder(name, packageNames) }
     }
 
+    fun removeAppFromHomeFolder(folderId: String, packageName: String) {
+        viewModelScope.launch { prefsRepository.removeAppFromHomeFolder(folderId, packageName) }
+    }
+
     fun renameHomeFolder(folderId: String, name: String) {
         viewModelScope.launch { prefsRepository.renameHomeFolder(folderId, name) }
     }
