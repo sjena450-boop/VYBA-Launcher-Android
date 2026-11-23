@@ -274,7 +274,7 @@ fun HomeScreen(
                                 onTogglePin = { onTogglePin(dockApp.packageName) },
                                 onToggleDock = { onToggleDock(dockApp.packageName) },
                                 onHideApp = { onToggleHide(dockApp.packageName) },
-                                onOpenAppInfo = { onOpenAppInfo(dockApp.packageName) },
+                                onAppInfo = { onOpenAppInfo(dockApp.packageName) },
                                 onUninstall = { onUninstallApp(dockApp.packageName) },
                                 iconSize = 46.dp,
                                 modifier = Modifier.weight(1f),

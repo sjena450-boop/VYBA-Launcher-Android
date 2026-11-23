@@ -36,6 +36,7 @@ class WallpaperApplier(private val context: Context) {
                     WallpaperTarget.BOTH -> WallpaperManager.FLAG_SYSTEM or WallpaperManager.FLAG_LOCK
                 }
                 manager.setBitmap(bitmap, null, true, flag)
+                Unit
             } finally {
                 bitmap.recycle()
             }
