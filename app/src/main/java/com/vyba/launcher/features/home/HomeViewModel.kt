@@ -44,7 +44,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         statusMessage,
     ) { loading, query, apps, prefs, message ->
         val visibleApps = filterVisibleApps(apps, query, prefs.hiddenPackages)
-        val pinned = apps.filter { it.packageName in prefs.pinnedPackages && it.packageName !in prefs.hiddenPackages }
+        val pinned = apps
+            .filter { it.packageName in prefs.pinnedPackages && it.packageName !in prefs.hiddenPackages }
+            .sortedWith(
+                compareBy<com.vyba.launcher.data.models.AppInfo> {
+                    val index = prefs.pinnedOrder.indexOf(it.packageName)
+                    if (index < 0) Int.MAX_VALUE else index
+                }.thenBy { it.label.lowercase() }
+            )
         val dock = prefs.dockPackages.mapNotNull { pkg -> apps.firstOrNull { it.packageName == pkg } }
         val hidden = apps.filter { it.packageName in prefs.hiddenPackages }
 
@@ -108,6 +115,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun togglePinned(packageName: String) {
         viewModelScope.launch { prefsRepository.togglePinnedPackage(packageName) }
+    }
+
+    fun movePinned(packageName: String, targetIndex: Int) {
+        viewModelScope.launch { prefsRepository.movePinnedPackage(packageName, targetIndex) }
     }
 
     fun toggleDock(packageName: String) {
