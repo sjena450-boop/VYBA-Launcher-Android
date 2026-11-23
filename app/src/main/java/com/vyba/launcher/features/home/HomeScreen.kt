@@ -166,9 +166,15 @@ fun HomeScreen(
     var activeDragPosition by remember { mutableStateOf<Offset?>(null) }
     val folderPackageNames = uiState.preferences.homeFolders.flatMap { it.packageNames }.toSet()
     val ungroupedPinnedApps = uiState.pinnedApps.filterNot { it.packageName in folderPackageNames }
-    val homePages = ungroupedPinnedApps.chunked(12)
-    val safeHomePage = selectedHomePage.coerceIn(0, (homePages.size - 1).coerceAtLeast(0))
-    val currentHomeApps = homePages.getOrNull(safeHomePage).orEmpty()
+    // Folder tiles occupy real grid slots on page zero instead of being added on top of 12 apps.
+    val firstPageAppCapacity = (12 - uiState.preferences.homeFolders.size).coerceAtLeast(0)
+    val firstPageApps = ungroupedPinnedApps.take(firstPageAppCapacity)
+    val remainingHomeApps = ungroupedPinnedApps.drop(firstPageAppCapacity)
+    val laterAppPages = remainingHomeApps.chunked(12)
+    val homePageCount = 1 + laterAppPages.size
+    val safeHomePage = selectedHomePage.coerceIn(0, (homePageCount - 1).coerceAtLeast(0))
+    val currentHomeApps = if (safeHomePage == 0) firstPageApps else laterAppPages.getOrNull(safeHomePage - 1).orEmpty()
+    val currentAppPageStartIndex = if (safeHomePage == 0) 0 else firstPageAppCapacity + (safeHomePage - 1) * 12
     val snackbarHostState = remember { SnackbarHostState() }
     var now by remember { mutableStateOf(LocalDateTime.now()) }
 
@@ -315,7 +321,7 @@ fun HomeScreen(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .pointerInput(homePages.size, safeHomePage) {
+                        .pointerInput(homePageCount, safeHomePage) {
                             var horizontalDrag = 0f
                             detectHorizontalDragGestures(
                                 onHorizontalDrag = { change, dragAmount ->
@@ -324,7 +330,7 @@ fun HomeScreen(
                                 },
                                 onDragEnd = {
                                     when {
-                                        horizontalDrag <= -60f -> selectedHomePage = (safeHomePage + 1).coerceAtMost(homePages.lastIndex)
+                                        horizontalDrag <= -60f -> selectedHomePage = (safeHomePage + 1).coerceAtMost(homePageCount - 1)
                                         horizontalDrag >= 60f -> selectedHomePage = (safeHomePage - 1).coerceAtLeast(0)
                                     }
                                     horizontalDrag = 0f
@@ -429,7 +435,7 @@ fun HomeScreen(
                                 }
                                 items(currentHomeApps, key = { it.packageName }) { app ->
                                     val localIndex = currentHomeApps.indexOfFirst { it.packageName == app.packageName }
-                                    val pageStartIndex = safeHomePage * 12
+                                    val pageStartIndex = currentAppPageStartIndex
                                     val absoluteIndex = pageStartIndex + localIndex
                                     var appOrigin by remember(app.packageName) { mutableStateOf(Offset.Zero) }
                                     AppIconTile(
@@ -500,13 +506,13 @@ fun HomeScreen(
                             }
                         }
                     }
-                    if (homePages.size > 1) {
+                    if (homePageCount > 1) {
                         Row(
                             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = VybaSpacing.xs),
                             horizontalArrangement = Arrangement.spacedBy(VybaSpacing.sm),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            homePages.indices.forEach { page ->
+                            (0 until homePageCount).forEach { page ->
                                 Surface(
                                     modifier = Modifier.size(if (page == safeHomePage) 10.dp else 7.dp)
                                         .clip(MaterialTheme.shapes.small).clickable { selectedHomePage = page },
