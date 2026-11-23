@@ -1,6 +1,7 @@
 package com.vyba.launcher.data.local
 
 import android.content.Context
+import android.util.Base64
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -10,6 +11,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.vyba.launcher.data.models.CornerStyle
+import com.vyba.launcher.data.models.HomeFolder
 import com.vyba.launcher.data.models.IconShape
 import com.vyba.launcher.data.models.LauncherPreferences
 import com.vyba.launcher.data.models.ThemeConfig
@@ -34,6 +36,7 @@ class PreferencesRepository(private val context: Context) {
         val DOCK_PACKAGES = stringPreferencesKey("dock_packages")
         val HIDDEN_PACKAGES = stringSetPreferencesKey("hidden_packages")
         val PINNED_ORDER = stringPreferencesKey("pinned_order")
+        val HOME_FOLDERS = stringPreferencesKey("home_folders")
     }
 
     val preferencesFlow: Flow<LauncherPreferences> = context.vybaDataStore.data.map { prefs ->
@@ -53,6 +56,7 @@ class PreferencesRepository(private val context: Context) {
             showAppLabels = prefs[Keys.SHOW_APP_LABELS] ?: true,
             pinnedPackages = prefs[Keys.PINNED_PACKAGES] ?: emptySet(),
             pinnedOrder = prefs[Keys.PINNED_ORDER].orEmpty().split("|").filter { it.isNotBlank() },
+            homeFolders = decodeFolders(prefs[Keys.HOME_FOLDERS].orEmpty()),
             dockPackages = dockList,
             hiddenPackages = prefs[Keys.HIDDEN_PACKAGES] ?: emptySet(),
         )
@@ -135,6 +139,54 @@ class PreferencesRepository(private val context: Context) {
             }
         }
     }
+
+
+    suspend fun createHomeFolder(name: String, packageNames: List<String>) {
+        val cleanName = name.trim().take(24)
+        val members = packageNames.distinct()
+        if (cleanName.isBlank() || members.size < 2) return
+        context.vybaDataStore.edit { prefs ->
+            val pinned = prefs[Keys.PINNED_PACKAGES] ?: emptySet()
+            if (members.any { it !in pinned }) return@edit
+            val folders = decodeFolders(prefs[Keys.HOME_FOLDERS].orEmpty()).toMutableList()
+            val alreadyGrouped = folders.flatMap { it.packageNames }.toSet()
+            if (members.any { it in alreadyGrouped }) return@edit
+            val id = java.util.UUID.randomUUID().toString()
+            folders.add(HomeFolder(id, cleanName, members))
+            prefs[Keys.HOME_FOLDERS] = encodeFolders(folders)
+        }
+    }
+
+    suspend fun deleteHomeFolder(folderId: String) {
+        context.vybaDataStore.edit { prefs ->
+            val folders = decodeFolders(prefs[Keys.HOME_FOLDERS].orEmpty())
+                .filterNot { it.id == folderId }
+            prefs[Keys.HOME_FOLDERS] = encodeFolders(folders)
+        }
+    }
+
+    private fun encodePart(value: String): String =
+        Base64.encodeToString(value.toByteArray(Charsets.UTF_8), Base64.NO_WRAP or Base64.URL_SAFE)
+
+    private fun decodePart(value: String): String =
+        String(Base64.decode(value, Base64.NO_WRAP or Base64.URL_SAFE), Charsets.UTF_8)
+
+    private fun encodeFolders(folders: List<HomeFolder>): String =
+        folders.joinToString("|") { folder ->
+            listOf(folder.id, folder.name, folder.packageNames.joinToString(","))
+                .joinToString(":") { encodePart(it) }
+        }
+
+    private fun decodeFolders(raw: String): List<HomeFolder> =
+        raw.split("|").mapNotNull { record ->
+            runCatching {
+                val parts = record.split(":")
+                if (parts.size != 3) return@runCatching null
+                val members = decodePart(parts[2]).split(",").filter { it.isNotBlank() }
+                HomeFolder(decodePart(parts[0]), decodePart(parts[1]), members)
+                    .takeIf { it.name.isNotBlank() && it.packageNames.size >= 2 }
+            }.getOrNull()
+        }
 
     suspend fun resetAll() {
         context.vybaDataStore.edit { it.clear() }
