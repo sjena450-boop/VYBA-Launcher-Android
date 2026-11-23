@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.vyba.launcher.VybaApplication
 import com.vyba.launcher.data.models.AppInfo
 import com.vyba.launcher.data.models.LauncherPreferences
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -71,8 +72,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun refreshApps() {
         viewModelScope.launch {
             isLoading.value = true
-            rawApps.value = appRepository.loadLaunchableApps()
-            isLoading.value = false
+            try {
+                rawApps.value = appRepository.loadLaunchableApps()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                statusMessage.value = "Unable to load installed apps. Please try again."
+            } finally {
+                isLoading.value = false
+            }
         }
     }
 
@@ -123,7 +131,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             val trimmed = query.trim().lowercase()
             return apps.filter { app ->
                 app.packageName !in hiddenPackages &&
-                    (trimmed.isEmpty() || app.label.lowercase().contains(trimmed))
+                    (trimmed.isEmpty() || app.label.contains(trimmed, ignoreCase = true) || app.packageName.contains(trimmed, ignoreCase = true))
             }
         }
     }
