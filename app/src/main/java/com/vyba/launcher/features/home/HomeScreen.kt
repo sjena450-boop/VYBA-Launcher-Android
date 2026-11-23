@@ -62,6 +62,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.input.pointer.pointerInput
@@ -152,6 +157,8 @@ fun HomeScreen(
     var selectedFolderId by remember { mutableStateOf<String?>(null) }
     var showRenameFolderDialog by remember { mutableStateOf(false) }
     var renameFolderId by remember { mutableStateOf<String?>(null) }
+    val folderBounds = remember { mutableStateMapOf<String, Rect>() }
+    var activeDragPosition by remember { mutableStateOf<Offset?>(null) }
     val folderPackageNames = uiState.preferences.homeFolders.flatMap { it.packageNames }.toSet()
     val ungroupedPinnedApps = uiState.pinnedApps.filterNot { it.packageName in folderPackageNames }
     val homePages = ungroupedPinnedApps.chunked(12)
@@ -355,10 +362,11 @@ fun HomeScreen(
                                         Surface(
                                             modifier = Modifier
                                                 .clip(MaterialTheme.shapes.medium)
+                                                .onGloballyPositioned { folderBounds[folder.id] = it.boundsInRoot() }
                                                 .clickable { selectedFolderId = folder.id }
                                                 .padding(vertical = 6.dp, horizontal = 4.dp),
                                             shape = MaterialTheme.shapes.medium,
-                                            color = MaterialTheme.colorScheme.secondaryContainer,
+                                            color = if (activeDragPosition?.let { folderBounds[folder.id]?.contains(it) } == true) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
                                         ) {
                                             Column(
                                                 modifier = Modifier.padding(vertical = 10.dp, horizontal = 6.dp),
@@ -391,41 +399,55 @@ fun HomeScreen(
                                     val localIndex = currentHomeApps.indexOfFirst { it.packageName == app.packageName }
                                     val pageStartIndex = safeHomePage * 12
                                     val absoluteIndex = pageStartIndex + localIndex
+                                    var appOrigin by remember(app.packageName) { mutableStateOf(Offset.Zero) }
                                     AppIconTile(
                                         modifier = (if (app.packageName in selectedForFolder) {
                                             Modifier.background(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.shapes.medium)
                                         } else Modifier).then(if (isHomeEditMode) {
-                                            Modifier.pointerInput(app.packageName, safeHomePage, uiState.preferences.gridColumns) {
-                                                var dragX = 0f
-                                                var dragY = 0f
-                                                detectDragGestures(
-                                                    onDrag = { change, amount ->
-                                                        change.consume()
-                                                        dragX += amount.x
-                                                        dragY += amount.y
-                                                    },
-                                                    onDragEnd = {
-                                                        val threshold = 36f
-                                                        val columns = uiState.preferences.gridColumns
-                                                        val step = if (kotlin.math.abs(dragX) > kotlin.math.abs(dragY)) {
-                                                            if (dragX > threshold) 1 else if (dragX < -threshold) -1 else 0
-                                                        } else {
-                                                            if (dragY > threshold) columns else if (dragY < -threshold) -columns else 0
-                                                        }
-                                                        if (step != 0) {
-                                                            val pageEndIndex = (pageStartIndex + currentHomeApps.size - 1)
-                                                            val target = (absoluteIndex + step).coerceIn(pageStartIndex, pageEndIndex)
-                                                            if (target != absoluteIndex) onMovePinned(app.packageName, target)
-                                                        }
-                                                        dragX = 0f
-                                                        dragY = 0f
-                                                    },
-                                                    onDragCancel = {
-                                                        dragX = 0f
-                                                        dragY = 0f
-                                                    },
-                                                )
-                                            }
+                                            Modifier
+                                                .onGloballyPositioned { appOrigin = it.positionInRoot() }
+                                                .pointerInput(app.packageName, safeHomePage, uiState.preferences.gridColumns, uiState.preferences.homeFolders) {
+                                                    var dragX = 0f
+                                                    var dragY = 0f
+                                                    detectDragGestures(
+                                                        onDragStart = { start -> activeDragPosition = appOrigin + start },
+                                                        onDrag = { change, amount ->
+                                                            change.consume()
+                                                            dragX += amount.x
+                                                            dragY += amount.y
+                                                            activeDragPosition = (activeDragPosition ?: appOrigin) + amount
+                                                        },
+                                                        onDragEnd = {
+                                                            val dropPosition = activeDragPosition
+                                                            val targetFolder = dropPosition?.let { point -> folderBounds.entries.firstOrNull { it.value.contains(point) }?.key }
+                                                            if (targetFolder != null) {
+                                                                onAddAppsToHomeFolder(targetFolder, listOf(app.packageName))
+                                                                selectedForFolder = selectedForFolder - app.packageName
+                                                            } else {
+                                                                val threshold = 36f
+                                                                val columns = uiState.preferences.gridColumns
+                                                                val step = if (kotlin.math.abs(dragX) > kotlin.math.abs(dragY)) {
+                                                                    if (dragX > threshold) 1 else if (dragX < -threshold) -1 else 0
+                                                                } else {
+                                                                    if (dragY > threshold) columns else if (dragY < -threshold) -columns else 0
+                                                                }
+                                                                if (step != 0) {
+                                                                    val pageEndIndex = pageStartIndex + currentHomeApps.size - 1
+                                                                    val target = (absoluteIndex + step).coerceIn(pageStartIndex, pageEndIndex)
+                                                                    if (target != absoluteIndex) onMovePinned(app.packageName, target)
+                                                                }
+                                                            }
+                                                            activeDragPosition = null
+                                                            dragX = 0f
+                                                            dragY = 0f
+                                                        },
+                                                        onDragCancel = {
+                                                            activeDragPosition = null
+                                                            dragX = 0f
+                                                            dragY = 0f
+                                                        },
+                                                    )
+                                                }
                                         } else Modifier),
                                         app = app,
                                         showLabel = uiState.preferences.showAppLabels,
@@ -464,7 +486,7 @@ fun HomeScreen(
                     }
                     if (isHomeEditMode) {
                         Text(
-                            text = "Drag apps to rearrange · ${uiState.pinnedApps.size} pinned apps",
+                            text = "Drag apps onto folders to move · ${uiState.pinnedApps.size} pinned apps",
                             modifier = Modifier.align(Alignment.TopCenter),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
