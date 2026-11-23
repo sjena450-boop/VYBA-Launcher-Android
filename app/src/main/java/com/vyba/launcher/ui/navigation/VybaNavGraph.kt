@@ -50,6 +50,7 @@ fun VybaNavGraph() {
                 onSearchChange = homeViewModel::updateSearchQuery,
                 onLaunchApp = homeViewModel::launchApp,
                 onTogglePin = homeViewModel::togglePinned,
+                onMovePinned = homeViewModel::movePinned,
                 onToggleDock = homeViewModel::toggleDock,
                 onToggleHide = homeViewModel::toggleHidden,
                 onOpenAppInfo = homeViewModel::openAppInfo,
