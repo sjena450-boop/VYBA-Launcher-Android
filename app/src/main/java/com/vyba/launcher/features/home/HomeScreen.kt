@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.clickable
@@ -73,6 +74,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.core.graphics.drawable.toBitmap
 import androidx.compose.ui.unit.dp
 import com.vyba.launcher.core.theme.VybaSpacing
 import com.vyba.launcher.core.theme.components.VybaCard
@@ -587,20 +591,58 @@ fun HomeScreen(
                     Column(
                         modifier = Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()),
                     ) {
-                        folder.packageNames.forEach { packageName ->
-                            val app = uiState.allApps.firstOrNull { it.packageName == packageName }
+                        folder.packageNames.chunked(3).forEach { packageRow ->
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
-                                Text(
-                                    text = app?.label ?: packageName,
-                                    modifier = Modifier.weight(1f),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
-                                TextButton(onClick = { onLaunchApp(packageName); selectedFolderId = null }) { Text("Open") }
-                                TextButton(onClick = { onRemoveAppFromHomeFolder(folder.id, packageName) }) { Text("Remove") }
+                                packageRow.forEach { packageName ->
+                                    val app = uiState.allApps.firstOrNull { it.packageName == packageName }
+                                    Column(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(MaterialTheme.shapes.medium)
+                                            .clickable { onLaunchApp(packageName); selectedFolderId = null }
+                                            .padding(vertical = 10.dp, horizontal = 4.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                    ) {
+                                        val iconBitmap = remember(packageName, app?.icon) {
+                                            app?.icon?.let { drawable ->
+                                                runCatching { drawable.toBitmap().asImageBitmap() }.getOrNull()
+                                            }
+                                        }
+                                        if (iconBitmap != null) {
+                                            Image(
+                                                bitmap = iconBitmap,
+                                                contentDescription = app?.label ?: packageName,
+                                                modifier = Modifier.size(46.dp),
+                                                contentScale = ContentScale.Fit,
+                                            )
+                                        } else {
+                                            Surface(
+                                                modifier = Modifier.size(46.dp),
+                                                shape = MaterialTheme.shapes.medium,
+                                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                            ) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Text((app?.label ?: packageName).take(1).uppercase())
+                                                }
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = app?.label ?: packageName,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            maxLines = 1,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                        )
+                                        TextButton(
+                                            onClick = { onRemoveAppFromHomeFolder(folder.id, packageName) },
+                                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                                        ) { Text("Remove", style = MaterialTheme.typography.labelSmall) }
+                                    }
+                                }
+                                repeat(3 - packageRow.size) { Spacer(modifier = Modifier.weight(1f)) }
                             }
                         }
                     }
