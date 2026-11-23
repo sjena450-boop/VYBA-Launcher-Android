@@ -64,7 +64,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.runtime.mutableStateMapOf
@@ -363,7 +363,7 @@ fun HomeScreen(
                                         Surface(
                                             modifier = Modifier
                                                 .clip(MaterialTheme.shapes.medium)
-                                                .onGloballyPositioned { folderBounds[folder.id] = it.boundsInRoot() }
+                                                .onGloballyPositioned { folderBounds[folder.id] = Rect(it.positionInRoot(), Size(it.size.width.toFloat(), it.size.height.toFloat())) }
                                                 .clickable { selectedFolderId = folder.id }
                                                 .padding(vertical = 6.dp, horizontal = 4.dp),
                                             shape = MaterialTheme.shapes.medium,
