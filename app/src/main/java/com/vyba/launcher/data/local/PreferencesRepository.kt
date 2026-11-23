@@ -93,10 +93,16 @@ class PreferencesRepository(private val context: Context) {
     suspend fun togglePinnedPackage(packageName: String) {
         context.vybaDataStore.edit { prefs ->
             val current = prefs[Keys.PINNED_PACKAGES] ?: emptySet()
-            prefs[Keys.PINNED_PACKAGES] = if (packageName in current) {
-                current - packageName
-            } else {
-                current + packageName
+            val removing = packageName in current
+            prefs[Keys.PINNED_PACKAGES] = if (removing) current - packageName else current + packageName
+            if (removing) {
+                val folders = decodeFolders(prefs[Keys.HOME_FOLDERS].orEmpty()).mapNotNull { folder ->
+                    val remaining = folder.packageNames - packageName
+                    if (remaining.size < 2) null else folder.copy(packageNames = remaining)
+                }
+                prefs[Keys.HOME_FOLDERS] = encodeFolders(folders)
+                val order = prefs[Keys.PINNED_ORDER].orEmpty().split("|").filter { it.isNotBlank() && it != packageName }
+                prefs[Keys.PINNED_ORDER] = order.joinToString("|")
             }
         }
     }
