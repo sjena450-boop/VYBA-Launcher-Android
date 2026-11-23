@@ -144,6 +144,7 @@ fun HomeScreen(
     var showCreateFolderDialog by remember { mutableStateOf(false) }
     var selectedFolderId by remember { mutableStateOf<String?>(null) }
     var showRenameFolderDialog by remember { mutableStateOf(false) }
+    var renameFolderId by remember { mutableStateOf<String?>(null) }
     val homePages = uiState.pinnedApps.chunked(12)
     val safeHomePage = selectedHomePage.coerceIn(0, (homePages.size - 1).coerceAtLeast(0))
     val currentHomeApps = homePages.getOrNull(safeHomePage).orEmpty()
@@ -496,7 +497,7 @@ fun HomeScreen(
                 text = { Column { folder.packageNames.forEach { packageName -> Text(uiState.allApps.firstOrNull { it.packageName == packageName }?.label ?: packageName, style = MaterialTheme.typography.bodyMedium) } } },
                 confirmButton = {
                     Row {
-                        TextButton(onClick = { folderName = folder.name; showRenameFolderDialog = true; selectedFolderId = null }) { Text("Rename") }
+                        TextButton(onClick = { folderName = folder.name; renameFolderId = folder.id; showRenameFolderDialog = true; selectedFolderId = null }) { Text("Rename") }
                         TextButton(onClick = { onDeleteHomeFolder(folder.id); selectedFolderId = null }) { Text("Delete folder") }
                     }
                 },
@@ -505,9 +506,8 @@ fun HomeScreen(
         }
     }
     if (showRenameFolderDialog) {
-        val folderId = selectedFolderId
         AlertDialog(
-            onDismissRequest = { showRenameFolderDialog = false; folderName = "" },
+            onDismissRequest = { showRenameFolderDialog = false; folderName = ""; renameFolderId = null },
             title = { Text("Rename home folder") },
             text = {
                 OutlinedTextField(
@@ -521,13 +521,14 @@ fun HomeScreen(
                 TextButton(
                     enabled = folderName.isNotBlank(),
                     onClick = {
-                        // The selected folder id is captured before the detail dialog closes.
+                        renameFolderId?.let { onRenameHomeFolder(it, folderName) }
                         showRenameFolderDialog = false
                         folderName = ""
+                        renameFolderId = null
                     },
                 ) { Text("Save") }
             },
-            dismissButton = { TextButton(onClick = { showRenameFolderDialog = false; folderName = "" }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { showRenameFolderDialog = false; folderName = ""; renameFolderId = null }) { Text("Cancel") } },
         )
     }
     if (showDrawer) {
