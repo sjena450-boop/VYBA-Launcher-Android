@@ -24,6 +24,16 @@ class AppFilterTest {
     }
 
     @Test
+    fun filterVisibleApps_matchesPackageNameCaseInsensitively() {
+        val result = HomeViewModel.filterVisibleApps(
+            apps = sampleApps,
+            query = "SPOTIFY",
+            hiddenPackages = emptySet(),
+        )
+        assertEquals(listOf("com.spotify.music"), result.map { it.packageName })
+    }
+
+    @Test
     fun filterVisibleApps_emptyQueryReturnsAllNonHidden() {
         val result = HomeViewModel.filterVisibleApps(
             apps = sampleApps,
