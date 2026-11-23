@@ -163,6 +163,21 @@ class PreferencesRepository(private val context: Context) {
         }
     }
 
+    suspend fun addAppsToHomeFolder(folderId: String, packageNames: List<String>) {
+        val members = packageNames.distinct()
+        if (members.isEmpty()) return
+        context.vybaDataStore.edit { prefs ->
+            val pinned = prefs[Keys.PINNED_PACKAGES] ?: emptySet()
+            if (members.any { it !in pinned }) return@edit
+            val folders = decodeFolders(prefs[Keys.HOME_FOLDERS].orEmpty()).map { folder ->
+                if (folder.id == folderId) {
+                    folder.copy(packageNames = (folder.packageNames + members).distinct())
+                } else folder
+            }
+            prefs[Keys.HOME_FOLDERS] = encodeFolders(folders)
+        }
+    }
+
     suspend fun removeAppFromHomeFolder(folderId: String, packageName: String) {
         context.vybaDataStore.edit { prefs ->
             val folders = decodeFolders(prefs[Keys.HOME_FOLDERS].orEmpty()).mapNotNull { folder ->
