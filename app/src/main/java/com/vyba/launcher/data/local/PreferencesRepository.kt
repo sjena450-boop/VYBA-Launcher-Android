@@ -163,6 +163,17 @@ class PreferencesRepository(private val context: Context) {
         }
     }
 
+    suspend fun removeAppFromHomeFolder(folderId: String, packageName: String) {
+        context.vybaDataStore.edit { prefs ->
+            val folders = decodeFolders(prefs[Keys.HOME_FOLDERS].orEmpty()).mapNotNull { folder ->
+                if (folder.id != folderId) folder
+                else folder.copy(packageNames = folder.packageNames - packageName)
+                    .takeIf { it.packageNames.size >= 2 }
+            }
+            prefs[Keys.HOME_FOLDERS] = encodeFolders(folders)
+        }
+    }
+
     suspend fun renameHomeFolder(folderId: String, name: String) {
         val cleanName = name.trim().take(24)
         if (cleanName.isBlank()) return
