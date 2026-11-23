@@ -377,11 +377,38 @@ fun HomeScreen(
                                                 modifier = Modifier.padding(vertical = 10.dp, horizontal = 6.dp),
                                                 horizontalAlignment = Alignment.CenterHorizontally,
                                             ) {
+                                                Row(
+                                                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                ) {
+                                                    folder.packageNames.take(3).forEach { packageName ->
+                                                        val previewApp = uiState.allApps.firstOrNull { it.packageName == packageName }
+                                                        val previewBitmap = remember(packageName, previewApp?.icon) {
+                                                            previewApp?.icon?.let { drawable ->
+                                                                runCatching { drawable.toBitmap().asImageBitmap() }.getOrNull()
+                                                            }
+                                                        }
+                                                        if (previewBitmap != null) {
+                                                            Image(
+                                                                bitmap = previewBitmap,
+                                                                contentDescription = previewApp?.label ?: packageName,
+                                                                modifier = Modifier.size(20.dp),
+                                                                contentScale = ContentScale.Fit,
+                                                            )
+                                                        } else {
+                                                            Surface(
+                                                                modifier = Modifier.size(20.dp),
+                                                                shape = MaterialTheme.shapes.extraSmall,
+                                                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                                            ) {}
+                                                        }
+                                                    }
+                                                }
                                                 Icon(
                                                     imageVector = Icons.Rounded.FolderOpen,
                                                     contentDescription = "Open ${folder.name}",
                                                     tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                                    modifier = Modifier.size(42.dp),
+                                                    modifier = Modifier.size(30.dp),
                                                 )
                                                 if (uiState.preferences.showAppLabels) {
                                                     Text(
