@@ -57,12 +57,19 @@ data class ThemeConfig(
     val iconShape: IconShape = IconShape.SQUIRCLE,
 )
 
+data class HomeFolder(
+    val id: String,
+    val name: String,
+    val packageNames: List<String>,
+)
+
 data class LauncherPreferences(
     val themeConfig: ThemeConfig = ThemeConfig(),
     val gridColumns: Int = 4,
     val showAppLabels: Boolean = true,
     val pinnedPackages: Set<String> = emptySet(),
     val pinnedOrder: List<String> = emptyList(),
+    val homeFolders: List<HomeFolder> = emptyList(),
     val dockPackages: List<String> = emptyList(),
     val hiddenPackages: Set<String> = emptySet(),
 )
