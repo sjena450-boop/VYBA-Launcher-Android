@@ -2,7 +2,7 @@ name: VYBA Android CI
 
 on:
   push:
-    branches: [ main, master, 'phase-2/**' ]
+    branches: [ main, master, 'phase-2/**', 'phase-2c/**' ]
   workflow_dispatch:
 
 jobs:
