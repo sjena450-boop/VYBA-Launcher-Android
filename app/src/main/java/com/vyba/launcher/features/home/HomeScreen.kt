@@ -7,6 +7,7 @@ import android.content.IntentFilter
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -83,6 +84,7 @@ fun HomeScreen(
     onSearchChange: (String) -> Unit,
     onLaunchApp: (String) -> Unit,
     onTogglePin: (String) -> Unit,
+    onMovePinned: (String, Int) -> Unit,
     onToggleDock: (String) -> Unit,
     onToggleHide: (String) -> Unit,
     onOpenAppInfo: (String) -> Unit,
@@ -316,7 +318,43 @@ fun HomeScreen(
                                 contentPadding = PaddingValues(bottom = VybaSpacing.md),
                             ) {
                                 items(currentHomeApps, key = { it.packageName }) { app ->
+                                    val localIndex = currentHomeApps.indexOfFirst { it.packageName == app.packageName }
+                                    val pageStartIndex = safeHomePage * 12
+                                    val absoluteIndex = pageStartIndex + localIndex
                                     AppIconTile(
+                                        modifier = if (isHomeEditMode) {
+                                            Modifier.pointerInput(app.packageName, safeHomePage, uiState.preferences.gridColumns) {
+                                                var dragX = 0f
+                                                var dragY = 0f
+                                                detectDragGestures(
+                                                    onDrag = { change, amount ->
+                                                        change.consume()
+                                                        dragX += amount.x
+                                                        dragY += amount.y
+                                                    },
+                                                    onDragEnd = {
+                                                        val threshold = 36f
+                                                        val columns = uiState.preferences.gridColumns
+                                                        val step = if (kotlin.math.abs(dragX) > kotlin.math.abs(dragY)) {
+                                                            if (dragX > threshold) 1 else if (dragX < -threshold) -1 else 0
+                                                        } else {
+                                                            if (dragY > threshold) columns else if (dragY < -threshold) -columns else 0
+                                                        }
+                                                        if (step != 0) {
+                                                            val pageEndIndex = (pageStartIndex + currentHomeApps.size - 1)
+                                                            val target = (absoluteIndex + step).coerceIn(pageStartIndex, pageEndIndex)
+                                                            if (target != absoluteIndex) onMovePinned(app.packageName, target)
+                                                        }
+                                                        dragX = 0f
+                                                        dragY = 0f
+                                                    },
+                                                    onDragCancel = {
+                                                        dragX = 0f
+                                                        dragY = 0f
+                                                    },
+                                                )
+                                            }
+                                        } else Modifier,
                                         app = app,
                                         showLabel = uiState.preferences.showAppLabels,
                                         isPinned = true,
@@ -350,7 +388,7 @@ fun HomeScreen(
                     }
                     if (isHomeEditMode) {
                         Text(
-                            text = "Home edit mode · ${uiState.pinnedApps.size} pinned apps",
+                            text = "Drag apps to rearrange · ${uiState.pinnedApps.size} pinned apps",
                             modifier = Modifier.align(Alignment.TopCenter),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
