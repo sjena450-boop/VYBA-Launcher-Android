@@ -53,6 +53,7 @@ fun VybaNavGraph() {
                 onMovePinned = homeViewModel::movePinned,
                 onCreateHomeFolder = homeViewModel::createHomeFolder,
                 onDeleteHomeFolder = homeViewModel::deleteHomeFolder,
+                onRenameHomeFolder = homeViewModel::renameHomeFolder,
                 onToggleDock = homeViewModel::toggleDock,
                 onToggleHide = homeViewModel::toggleHidden,
                 onOpenAppInfo = homeViewModel::openAppInfo,
