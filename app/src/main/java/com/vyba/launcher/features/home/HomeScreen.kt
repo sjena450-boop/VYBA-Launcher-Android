@@ -2,7 +2,9 @@ package com.vyba.launcher.features.home
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,8 +22,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Apps
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Refresh
@@ -29,6 +34,7 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -49,8 +55,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.vyba.launcher.core.theme.LocalVybaThemeConfig
 import com.vyba.launcher.core.theme.VybaSpacing
 import com.vyba.launcher.core.theme.components.VybaCard
 import com.vyba.launcher.core.theme.components.VybaEmptyState
@@ -61,6 +71,13 @@ import kotlinx.coroutines.delay
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+
+private enum class DrawerFilter(val label: String) {
+    ALL("All"),
+    USER("Downloaded"),
+    PINNED("Pinned"),
+    SYSTEM("System"),
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,8 +97,10 @@ fun HomeScreen(
     onNavigateSettings: () -> Unit,
 ) {
     var showDrawer by remember { mutableStateOf(false) }
+    var activeFilter by remember { mutableStateOf(DrawerFilter.ALL) }
     val snackbarHostState = remember { SnackbarHostState() }
     var now by remember { mutableStateOf(LocalDateTime.now()) }
+    val themeConfig = LocalVybaThemeConfig.current
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -104,6 +123,14 @@ fun HomeScreen(
     val timeFormatter = remember { DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault()) }
     val dateFormatter = remember { DateTimeFormatter.ofPattern("EEEE, MMM d", Locale.getDefault()) }
 
+    val scrimBrush = Brush.verticalGradient(
+        colors = listOf(
+            MaterialTheme.colorScheme.background.copy(alpha = 0.42f),
+            MaterialTheme.colorScheme.background.copy(alpha = 0.25f),
+            MaterialTheme.colorScheme.background.copy(alpha = 0.68f),
+        ),
+    )
+
     Scaffold(
         containerColor = Color.Transparent,
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -111,7 +138,7 @@ fun HomeScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background.copy(alpha = 0.55f))
+                .background(scrimBrush)
                 .statusBarsPadding()
                 .navigationBarsPadding()
                 .padding(innerPadding),
@@ -121,9 +148,9 @@ fun HomeScreen(
                     .fillMaxSize()
                     .padding(horizontal = VybaSpacing.md),
             ) {
-                Spacer(modifier = Modifier.height(VybaSpacing.lg))
+                Spacer(modifier = Modifier.height(VybaSpacing.md))
 
-                // Clock & Date Header
+                // Editorial Clock & Quick Actions
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -132,7 +159,11 @@ fun HomeScreen(
                     Column {
                         Text(
                             text = now.format(timeFormatter),
-                            style = MaterialTheme.typography.displayLarge,
+                            style = MaterialTheme.typography.displayLarge.copy(
+                                fontSize = 54.sp,
+                                fontWeight = FontWeight.Light,
+                                letterSpacing = (-2).sp,
+                            ),
                             color = MaterialTheme.colorScheme.onBackground,
                         )
                         Text(
@@ -140,43 +171,87 @@ fun HomeScreen(
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        Spacer(modifier = Modifier.height(VybaSpacing.sm))
+                        Surface(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .clickable(onClick = onNavigateThemes),
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.AutoAwesome,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(14.dp),
+                                )
+                                Text(
+                                    text = if (themeConfig.useDynamicColor) "Material You" else themeConfig.preset.displayName,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                )
+                            }
+                        }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(VybaSpacing.xs)) {
-                        IconButton(onClick = onNavigateWallpapers) {
-                            Icon(
-                                imageVector = Icons.Rounded.Wallpaper,
-                                contentDescription = "Wallpapers",
-                                tint = MaterialTheme.colorScheme.onBackground,
-                            )
-                        }
-                        IconButton(onClick = onNavigateThemes) {
-                            Icon(
-                                imageVector = Icons.Rounded.Palette,
-                                contentDescription = "Theme Studio",
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                        IconButton(onClick = onNavigateSettings) {
-                            Icon(
-                                imageVector = Icons.Rounded.Settings,
-                                contentDescription = "Settings",
-                                tint = MaterialTheme.colorScheme.onBackground,
-                            )
+
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.65f),
+                        modifier = Modifier.border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                            shape = CircleShape,
+                        ),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            IconButton(onClick = onNavigateWallpapers) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Wallpaper,
+                                    contentDescription = "Wallpapers",
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                            IconButton(onClick = onNavigateThemes) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Palette,
+                                    contentDescription = "Theme Studio",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                            IconButton(onClick = onNavigateSettings) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Settings,
+                                    contentDescription = "Settings",
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(VybaSpacing.lg))
 
-                // Search Pill -> opens App Drawer
+                // Frosted Search Pill -> opens App Drawer
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(MaterialTheme.shapes.large)
+                        .border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
+                            shape = MaterialTheme.shapes.large,
+                        )
                         .clickable { showDrawer = true },
                     shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
-                    tonalElevation = 2.dp,
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.78f),
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = VybaSpacing.md, vertical = 14.dp),
@@ -189,9 +264,15 @@ fun HomeScreen(
                         )
                         Spacer(modifier = Modifier.width(VybaSpacing.sm))
                         Text(
-                            text = "Search apps or open drawer...",
+                            text = "Search ${uiState.allApps.size} apps...",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            text = "VYBA",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
                         )
                     }
                 }
@@ -205,19 +286,19 @@ fun HomeScreen(
                         uiState.pinnedApps.isEmpty() -> {
                             VybaCard(modifier = Modifier.align(Alignment.TopCenter)) {
                                 Text(
-                                    text = "Your VYBA Home Grid",
+                                    text = "Clean Home Canvas",
                                     style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.onSurface,
                                 )
                                 Spacer(modifier = Modifier.height(VybaSpacing.xs))
                                 Text(
-                                    text = "Long-press any app in the drawer to pin it here or add it to your dock.",
+                                    text = "Long-press any app in the drawer to pin it here or add it to your floating dock.",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 Spacer(modifier = Modifier.height(VybaSpacing.md))
                                 VybaPrimaryButton(
-                                    text = "Open App Drawer",
+                                    text = "Browse All Apps",
                                     onClick = { showDrawer = true },
                                 )
                             }
@@ -248,14 +329,19 @@ fun HomeScreen(
                     }
                 }
 
-                // Bottom Dock
+                // Floating Glass Dock
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = VybaSpacing.md),
-                    shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
-                    tonalElevation = 4.dp,
+                        .padding(bottom = VybaSpacing.md)
+                        .border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.14f),
+                            shape = MaterialTheme.shapes.extraLarge,
+                        ),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.84f),
+                    tonalElevation = 6.dp,
                 ) {
                     Row(
                         modifier = Modifier
@@ -280,16 +366,22 @@ fun HomeScreen(
                                 modifier = Modifier.weight(1f),
                             )
                         }
-                        IconButton(
-                            onClick = { showDrawer = true },
-                            modifier = Modifier.size(52.dp),
+                        Surface(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .clickable { showDrawer = true },
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer,
                         ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Apps,
-                                contentDescription = "All Apps",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(28.dp),
-                            )
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Apps,
+                                    contentDescription = "All Apps",
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.size(24.dp),
+                                )
+                            }
                         }
                     }
                 }
@@ -299,6 +391,15 @@ fun HomeScreen(
 
     if (showDrawer) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val filteredDrawerApps = remember(uiState.drawerApps, activeFilter, uiState.preferences.pinnedPackages) {
+            when (activeFilter) {
+                DrawerFilter.ALL -> uiState.drawerApps
+                DrawerFilter.USER -> uiState.drawerApps.filter { !it.isSystemApp }
+                DrawerFilter.PINNED -> uiState.drawerApps.filter { it.packageName in uiState.preferences.pinnedPackages }
+                DrawerFilter.SYSTEM -> uiState.drawerApps.filter { it.isSystemApp }
+            }
+        }
+
         ModalBottomSheet(
             onDismissRequest = { showDrawer = false },
             sheetState = sheetState,
@@ -319,7 +420,7 @@ fun HomeScreen(
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         shape = MaterialTheme.shapes.large,
-                        placeholder = { Text("Search ${uiState.drawerApps.size} apps") },
+                        placeholder = { Text("Search ${filteredDrawerApps.size} apps") },
                         leadingIcon = {
                             Icon(Icons.Rounded.Search, contentDescription = null)
                         },
@@ -337,13 +438,30 @@ fun HomeScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(VybaSpacing.md))
+                Spacer(modifier = Modifier.height(VybaSpacing.sm))
 
-                if (uiState.drawerApps.isEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(VybaSpacing.xs),
+                ) {
+                    DrawerFilter.entries.forEach { filter ->
+                        FilterChip(
+                            selected = activeFilter == filter,
+                            onClick = { activeFilter = filter },
+                            label = { Text(filter.label) },
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(VybaSpacing.sm))
+
+                if (filteredDrawerApps.isEmpty()) {
                     VybaEmptyState(
                         icon = Icons.Rounded.Apps,
                         title = "No matching apps",
-                        description = "Try a different search term or unhide apps in Settings.",
+                        description = "Try another filter, search term, or unhide apps in Settings.",
                     )
                 } else {
                     LazyVerticalGrid(
@@ -352,7 +470,7 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.spacedBy(VybaSpacing.xs),
                         contentPadding = PaddingValues(bottom = VybaSpacing.xl),
                     ) {
-                        items(uiState.drawerApps, key = { it.packageName }) { app ->
+                        items(filteredDrawerApps, key = { it.packageName }) { app ->
                             AppIconTile(
                                 app = app,
                                 showLabel = uiState.preferences.showAppLabels,

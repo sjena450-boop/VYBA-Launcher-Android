@@ -52,59 +52,73 @@ class WallpaperApplier(private val context: Context) {
         val canvas = Canvas(bitmap)
         val argbColors = preset.colors.map { it.toArgb() }.toIntArray()
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        val w = width.toFloat()
+        val h = height.toFloat()
 
+        // Base backdrop
+        paint.shader = LinearGradient(
+            0f, 0f, 0f, h,
+            argbColors.first(),
+            argbColors[1],
+            Shader.TileMode.CLAMP,
+        )
+        canvas.drawRect(0f, 0f, w, h, paint)
+
+        // Layered atmospheric glow
+        val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG)
         when (preset.pattern) {
             WallpaperPattern.RADIAL_GLOW -> {
-                canvas.drawColor(argbColors.first())
-                paint.shader = RadialGradient(
-                    width * 0.5f,
-                    height * 0.35f,
-                    width * 0.95f,
-                    intArrayOf(argbColors.last(), argbColors[1], argbColors.first()),
-                    floatArrayOf(0f, 0.55f, 1f),
+                glowPaint.shader = RadialGradient(
+                    w * 0.5f, h * 0.34f, w * 0.85f,
+                    intArrayOf(argbColors.last(), argbColors[1], 0x00000000),
+                    floatArrayOf(0f, 0.45f, 1f),
                     Shader.TileMode.CLAMP,
                 )
-                canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+                canvas.drawRect(0f, 0f, w, h, glowPaint)
             }
 
             WallpaperPattern.DIAGONAL_WAVE -> {
-                paint.shader = LinearGradient(
-                    0f,
-                    0f,
-                    width.toFloat(),
-                    height.toFloat(),
-                    argbColors,
-                    null,
+                glowPaint.shader = RadialGradient(
+                    w * 0.85f, h * 0.25f, w * 0.9f,
+                    intArrayOf(argbColors.last(), 0x00000000),
+                    floatArrayOf(0f, 1f),
                     Shader.TileMode.CLAMP,
                 )
-                canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+                canvas.drawRect(0f, 0f, w, h, glowPaint)
+                glowPaint.shader = RadialGradient(
+                    w * 0.15f, h * 0.78f, w * 0.8f,
+                    intArrayOf(argbColors[1], 0x00000000),
+                    floatArrayOf(0f, 1f),
+                    Shader.TileMode.CLAMP,
+                )
+                canvas.drawRect(0f, 0f, w, h, glowPaint)
             }
 
             WallpaperPattern.AURORA_MESH -> {
-                canvas.drawColor(argbColors.first())
-                paint.shader = LinearGradient(
-                    0f,
-                    height.toFloat(),
-                    width.toFloat(),
-                    0f,
-                    argbColors,
-                    null,
+                glowPaint.shader = RadialGradient(
+                    w * 0.2f, h * 0.28f, w * 0.85f,
+                    intArrayOf(argbColors.last(), 0x00000000),
+                    floatArrayOf(0f, 1f),
                     Shader.TileMode.CLAMP,
                 )
-                canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+                canvas.drawRect(0f, 0f, w, h, glowPaint)
+                glowPaint.shader = RadialGradient(
+                    w * 0.82f, h * 0.65f, w * 0.85f,
+                    intArrayOf(argbColors[1], 0x00000000),
+                    floatArrayOf(0f, 1f),
+                    Shader.TileMode.CLAMP,
+                )
+                canvas.drawRect(0f, 0f, w, h, glowPaint)
             }
 
             WallpaperPattern.MINIMAL_HORIZON -> {
-                paint.shader = LinearGradient(
-                    0f,
-                    0f,
-                    0f,
-                    height.toFloat(),
-                    argbColors,
-                    floatArrayOf(0f, 0.55f, 1f),
+                glowPaint.shader = LinearGradient(
+                    0f, h * 0.45f, 0f, h,
+                    intArrayOf(0x00000000, argbColors.last(), argbColors.first()),
+                    floatArrayOf(0f, 0.45f, 1f),
                     Shader.TileMode.CLAMP,
                 )
-                canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+                canvas.drawRect(0f, 0f, w, h, glowPaint)
             }
         }
         return bitmap

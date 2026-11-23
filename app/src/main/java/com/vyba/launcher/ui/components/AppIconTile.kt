@@ -1,9 +1,15 @@
 package com.vyba.launcher.ui.components
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -25,8 +31,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -57,11 +65,19 @@ fun AppIconTile(
     onAppInfo: () -> Unit,
     onUninstall: () -> Unit,
     modifier: Modifier = Modifier,
-    iconSize: Dp = 54.dp,
+    iconSize: Dp = 56.dp,
 ) {
     val themeConfig = LocalVybaThemeConfig.current
     val clipShape = iconClipShape(themeConfig.iconShape)
     var menuExpanded by remember { mutableStateOf(false) }
+
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.90f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "iconPressScale",
+    )
 
     val bitmap = remember(app.packageName, app.icon) {
         app.icon?.let { runCatching { it.toBitmap().asImageBitmap() }.getOrNull() }
@@ -69,8 +85,14 @@ fun AppIconTile(
 
     Box(
         modifier = modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
             .clip(MaterialTheme.shapes.small)
             .combinedClickable(
+                interactionSource = interactionSource,
+                indication = null,
                 onClick = onLaunch,
                 onLongClick = { menuExpanded = true },
             )
@@ -81,8 +103,14 @@ fun AppIconTile(
             Box(
                 modifier = Modifier
                     .size(iconSize)
+                    .shadow(elevation = 6.dp, shape = clipShape, clip = false)
                     .clip(clipShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)),
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f))
+                    .border(
+                        width = 0.75.dp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.14f),
+                        shape = clipShape,
+                    ),
                 contentAlignment = Alignment.Center,
             ) {
                 if (bitmap != null) {

@@ -1,5 +1,9 @@
 package com.vyba.launcher.ui.navigation
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -43,6 +47,18 @@ fun VybaNavGraph() {
     NavHost(
         navController = navController,
         startDestination = VybaRoutes.HOME,
+        enterTransition = {
+            slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Start, tween(260)) + fadeIn(tween(220))
+        },
+        exitTransition = {
+            fadeOut(tween(180))
+        },
+        popEnterTransition = {
+            fadeIn(tween(220))
+        },
+        popExitTransition = {
+            slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(240)) + fadeOut(tween(180))
+        },
     ) {
         composable(VybaRoutes.HOME) {
             HomeScreen(
