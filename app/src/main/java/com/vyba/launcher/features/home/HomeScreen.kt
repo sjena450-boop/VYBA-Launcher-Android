@@ -36,7 +36,9 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Wallpaper
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -85,6 +87,8 @@ fun HomeScreen(
     onLaunchApp: (String) -> Unit,
     onTogglePin: (String) -> Unit,
     onMovePinned: (String, Int) -> Unit,
+    onCreateHomeFolder: (String, List<String>) -> Unit,
+    onDeleteHomeFolder: (String) -> Unit,
     onToggleDock: (String) -> Unit,
     onToggleHide: (String) -> Unit,
     onOpenAppInfo: (String) -> Unit,
@@ -134,6 +138,10 @@ fun HomeScreen(
     var showDrawer by remember { mutableStateOf(false) }
     var isHomeEditMode by remember { mutableStateOf(false) }
     var selectedHomePage by remember { mutableStateOf(0) }
+    var selectedForFolder by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var folderName by remember { mutableStateOf("") }
+    var showCreateFolderDialog by remember { mutableStateOf(false) }
+    var selectedFolderId by remember { mutableStateOf<String?>(null) }
     val homePages = uiState.pinnedApps.chunked(12)
     val safeHomePage = selectedHomePage.coerceIn(0, (homePages.size - 1).coerceAtLeast(0))
     val currentHomeApps = homePages.getOrNull(safeHomePage).orEmpty()
@@ -236,6 +244,23 @@ fun HomeScreen(
                     }
                 }
 
+                if (isHomeEditMode) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = "${selectedForFolder.size} apps selected", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        TextButton(enabled = selectedForFolder.size >= 2, onClick = { showCreateFolderDialog = true }) { Text("Create folder") }
+                        TextButton(onClick = { selectedForFolder = emptySet() }, enabled = selectedForFolder.isNotEmpty()) { Text("Clear") }
+                    }
+                }
+                if (uiState.preferences.homeFolders.isNotEmpty()) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(VybaSpacing.xs)) {
+                        uiState.preferences.homeFolders.forEach { folder ->
+                            Surface(modifier = Modifier.clickable { selectedFolderId = folder.id }, shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.secondaryContainer) {
+                                Text(text = "${folder.name} · ${folder.packageNames.size}", modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(VybaSpacing.xs))
+                }
                 // Search Pill -> opens App Drawer
                 Surface(
                     modifier = Modifier
@@ -322,7 +347,9 @@ fun HomeScreen(
                                     val pageStartIndex = safeHomePage * 12
                                     val absoluteIndex = pageStartIndex + localIndex
                                     AppIconTile(
-                                        modifier = if (isHomeEditMode) {
+                                        modifier = (if (app.packageName in selectedForFolder) {
+                                            Modifier.background(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.shapes.medium)
+                                        } else Modifier).then(if (isHomeEditMode) {
                                             Modifier.pointerInput(app.packageName, safeHomePage, uiState.preferences.gridColumns) {
                                                 var dragX = 0f
                                                 var dragY = 0f
@@ -354,12 +381,16 @@ fun HomeScreen(
                                                     },
                                                 )
                                             }
-                                        } else Modifier,
+                                        } else Modifier),
                                         app = app,
                                         showLabel = uiState.preferences.showAppLabels,
                                         isPinned = true,
                                         isDocked = app.packageName in uiState.preferences.dockPackages,
-                                        onLaunch = { onLaunchApp(app.packageName) },
+                                        onLaunch = {
+                                            if (isHomeEditMode) {
+                                                selectedForFolder = if (app.packageName in selectedForFolder) selectedForFolder - app.packageName else selectedForFolder + app.packageName
+                                            } else onLaunchApp(app.packageName)
+                                        },
                                         onTogglePin = { onTogglePin(app.packageName) },
                                         onToggleDock = { onToggleDock(app.packageName) },
                                         onHideApp = { onToggleHide(app.packageName) },
@@ -445,6 +476,27 @@ fun HomeScreen(
         }
     }
 
+    if (showCreateFolderDialog) {
+        AlertDialog(
+            onDismissRequest = { showCreateFolderDialog = false },
+            title = { Text("Create home folder") },
+            text = { Column { Text("Add the ${selectedForFolder.size} selected apps to a folder."); OutlinedTextField(value = folderName, onValueChange = { folderName = it.take(24) }, singleLine = true, label = { Text("Folder name") }) } },
+            confirmButton = { TextButton(enabled = folderName.isNotBlank(), onClick = { onCreateHomeFolder(folderName, selectedForFolder.toList()); folderName = ""; selectedForFolder = emptySet(); showCreateFolderDialog = false }) { Text("Create") } },
+            dismissButton = { TextButton(onClick = { showCreateFolderDialog = false }) { Text("Cancel") } },
+        )
+    }
+    selectedFolderId?.let { folderId ->
+        val folder = uiState.preferences.homeFolders.firstOrNull { it.id == folderId }
+        if (folder == null) { selectedFolderId = null } else {
+            AlertDialog(
+                onDismissRequest = { selectedFolderId = null },
+                title = { Text(folder.name) },
+                text = { Column { folder.packageNames.forEach { packageName -> Text(uiState.allApps.firstOrNull { it.packageName == packageName }?.label ?: packageName, style = MaterialTheme.typography.bodyMedium) } } },
+                confirmButton = { TextButton(onClick = { onDeleteHomeFolder(folder.id); selectedFolderId = null }) { Text("Delete folder") } },
+                dismissButton = { TextButton(onClick = { selectedFolderId = null }) { Text("Close") } },
+            )
+        }
+    }
     if (showDrawer) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(
